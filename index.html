@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>המוזיקה שלי — ניתוח Shazam</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f5fb; color: #1e293b; padding: 18px 14px 120px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 2px; }
+  .sub { color: #64748b; margin-bottom: 18px; font-size: 14px; }
+  .row { display: grid; gap: 14px; margin-bottom: 16px; }
+  .r2 { grid-template-columns: 1fr 1fr; }
+  .r3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px) { .r2, .r3 { grid-template-columns: 1fr; } }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .stat { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 4px 14px rgba(15,23,42,.05); display: flex; align-items: center; gap: 13px; }
+  .stat .ic { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0; }
+  .stat .num { font-size: 21px; font-weight: 700; color: #1e293b; line-height: 1.15; }
+  .stat .lbl { font-size: 12.5px; color: #94a3b8; margin-top: 2px; }
+  .card { background: #fff; border-radius: 16px; padding: 18px 20px; box-shadow: 0 4px 14px rgba(15,23,42,.05); }
+  .card h3 { font-size: 15px; margin-bottom: 14px; }
+  .grad { color: #fff; position: relative; overflow: hidden; }
+  .grad::after { content: ''; position: absolute; top: -60px; left: -40px; width: 200px; height: 200px; background: rgba(255,255,255,.12); border-radius: 50%; }
+  .g-violet { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+  .g-pink { background: linear-gradient(135deg, #ec4899, #f43f5e); }
+  .grad h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  .grad .cap { font-size: 12px; opacity: .85; margin: -8px 0 12px; }
+  .miniitems { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; position: relative; z-index: 1; }
+  .miniitem { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.12); border-radius: 11px; padding: 9px 11px; font-size: 13px; display: flex; align-items: center; gap: 9px; }
+  .miniitem .rank { background: rgba(0,0,0,.22); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .miniitem .mt { min-width: 0; }
+  .miniitem .mt b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .miniitem .mt span { font-size: 11px; opacity: .8; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .donutwrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .legend { font-size: 12px; color: #475569; }
+  .legend div { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .barrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+  .barrow .nm { width: 150px; text-align: left; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barrow .track { flex: 1; background: #eef2ff; border-radius: 6px; height: 16px; overflow: hidden; display: block; }
+  .barrow .fill { display: block; height: 100%; border-radius: 6px; }
+  .barrow .vn { width: 34px; color: #64748b; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+  .chip { border: 1px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer; }
+  .chip.on { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+  .chip .n { opacity: .7; font-size: 11px; }
+  .bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .bar input[type=search], .bar select { padding: 9px 13px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; }
+  .bar input[type=search] { flex: 1; min-width: 180px; }
+  .btn { padding: 9px 15px; border: none; border-radius: 10px; color: #fff; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .b-green { background: #16a34a; } .b-indigo { background: #4f46e5; } .b-spotify { background: #1db954; }
+  table { width: 100%; background: #fff; border-radius: 12px; overflow: hidden; border-collapse: collapse; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  th { text-align: right; font-size: 12px; color: #64748b; padding: 11px 12px; background: #f8fafc; }
+  td { padding: 9px 12px; border-top: 1px solid #f1f5f9; font-size: 14px; }
+  td.song { font-weight: 600; max-width: 240px; }
+  td.artist { color: #475569; max-width: 170px; }
+  select.cat { padding: 4px 7px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; background: #eef2ff; color: #4338ca; max-width: 200px; }
+  select.cat.fixed { background: #fef9c3; color: #854d0e; border-color: #fde047; }
+  .play { cursor: pointer; background: #1db954; color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 13px; }
+  .yt { text-decoration: none; color: #b91c1c; font-size: 12px; margin-right: 6px; }
+  .more { display: block; margin: 14px auto; padding: 9px 24px; border: none; border-radius: 999px; background: #4f46e5; color: #fff; font-size: 14px; cursor: pointer; }
+  .count { color: #64748b; font-size: 13px; margin: 8px 2px; }
+  .note { font-size: 12px; color: #94a3b8; margin-top: 16px; text-align: center; }
+  details.dict { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 16px; }
+  details.dict summary { padding: 16px 18px; font-size: 15px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; }
+  details.dict summary::-webkit-details-marker { display: none; }
+  .gcards { padding: 4px 18px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .gcard { background: #f8fafc; border: 1px solid #eef2ff; border-radius: 10px; padding: 14px; }
+  .gcard .em { font-size: 30px; }
+  .gcard .gt { font-weight: 700; margin: 4px 0; }
+  .gcard .gd { color: #4f46e5; font-size: 13px; margin-bottom: 8px; }
+  .gcard .ex { background: #fff; border: 1px solid #e0e7ff; border-radius: 8px; padding: 6px 9px; font-size: 12px; margin-bottom: 8px; }
+  .gcard .box { font-size: 12px; border-radius: 8px; padding: 8px; margin-top: 6px; }
+  .gcard .edu { background: #eef2ff; color: #3730a3; }
+  .gcard .fun { background: #fef9c3; color: #854d0e; }
+  #player { position: fixed; bottom: 0; left: 0; right: 0; background: #111827; padding: 6px; box-shadow: 0 -2px 12px rgba(0,0,0,.25); z-index: 40; display: none; }
+  #player iframe { width: 100%; height: 80px; border: 0; border-radius: 10px; }
+  #player .x { position: absolute; top: -30px; left: 10px; background: #111827; color: #fff; border: none; border-radius: 8px 8px 0 0; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎵 המוזיקה שלי</h1>
+  <div class="sub">כל השירים שגילית ב-Shazam, מסודרים לקטגוריות</div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="row r2">
+    <div class="card grad g-pink" id="dups"></div>
+    <div class="card grad g-violet" id="modern"></div>
+  </div>
+
+  <div class="row r2">
+    <div class="card"><h3>🍩 התפלגות כללית</h3><div class="donutwrap"><div id="donut"></div><div class="legend" id="legend"></div></div></div>
+    <div class="card"><h3>📊 חלוקה לקטגוריות</h3><div id="catbars"></div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px"><h3>📅 לפי עשור יציאה</h3><div id="decbars"></div></div>
+
+  <details class="dict">
+    <summary><span>📖 מילון הז'אנרים שלך</span><span style="color:#94a3b8;font-size:13px">לחץ לפתיחה</span></summary>
+    <div class="gcards" id="gcards"></div>
+  </details>
+
+  <div class="chips" id="chips"></div>
+  <div class="bar">
+    <input id="q" type="search" placeholder="חפש שיר או אמן...">
+    <select id="mood">
+      <option value="all">😀 כל מצב רוח</option>
+      <option value="calm">😌 רגוע</option>
+      <option value="mid">🎶 בינוני</option>
+      <option value="hi">⚡ אנרגטי</option>
+    </select>
+    <button class="btn b-indigo" id="up">⬆ העלה רשימה</button>
+    <button class="btn b-green" id="dl">⬇ הורד CSV</button>
+    <button class="btn b-spotify" id="sp">🟢 צור פלייליסט בספוטיפיי</button>
+    <input type="file" id="file" accept=".csv" hidden>
+  </div>
+  <div class="count" id="listInfo"></div>
+  <div class="count" id="count"></div>
+
+  <table>
+    <thead><tr><th>נגן</th><th>שיר</th><th>אמן</th><th>שנה</th><th>קטגוריה (אפשר לתקן)</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <button class="more" id="more" style="display:none">הצג עוד</button>
+  <div class="note">תיקוני קטגוריה נשמרים בדפדפן שלך · הנגן והייצוא משתמשים ב-Spotify Track ID לזיהוי מדויק</div>
+</div>
+
+<div id="player"><button class="x" id="pclose">✕ סגור נגן</button><iframe id="pframe" allow="encrypted-media"></iframe></div>
+
+<script src="songs.js?v=5"></script>
+<script src="artist_map.js?v=5"></script>
+<script src="genres.js?v=5"></script>
+<script src="rules.js?v=5"></script>
+<script src="spotify.js?v=5"></script>
+<script>
+const CATS = ["ישראלי","Oriental & Arabic Classics","Modern Arabic Pop","Chanson & French",
+  "Jazz, Blues & Soul","Golden Oldies (The Legends)","Rock & Alternative Anthems",
+  "Indie, Folk & Bedroom","Techno & Electronic Club","Hip Hop, R&B & Groove","Modern Pop Hits"];
+const CATCOLORS = { "ישראלי":"#3b82f6","Oriental & Arabic Classics":"#f59e0b","Modern Arabic Pop":"#f97316",
+  "Chanson & French":"#ec4899","Jazz, Blues & Soul":"#8b5cf6","Golden Oldies (The Legends)":"#14b8a6",
+  "Rock & Alternative Anthems":"#ef4444","Indie, Folk & Bedroom":"#10b981",
+  "Techno & Electronic Club":"#06b6d4","Hip Hop, R&B & Groove":"#6366f1","Modern Pop Hits":"#84cc16" };
+
+const FIX_KEY = 'shazam-category-fixes';
+const UP_KEY = 'shazam-uploaded';
+let fixes = {}; try { fixes = JSON.parse(localStorage.getItem(FIX_KEY)) || {}; } catch (e) {}
+const keyOf = s => (s.a + '|||' + s.s).toLowerCase();
+const catOf = s => fixes[keyOf(s)] || s.c;
+const esc = t => (t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+let DATA = SONGS, listLabel = '';
+try { const u = JSON.parse(localStorage.getItem(UP_KEY)); if (u && u.songs && u.songs.length) { DATA = u.songs; listLabel = `${u.name} (הועלה ${u.date})`; } } catch (e) {}
+
+let activeCat = 'הכל', query = '', mood = 'all', shown = 60;
+
+function filtered() {
+  const q = query.trim().toLowerCase();
+  return DATA.filter(s => {
+    if (activeCat !== 'הכל' && catOf(s) !== activeCat) return false;
+    if (q && !s.s.toLowerCase().includes(q) && !s.a.toLowerCase().includes(q)) return false;
+    if (mood !== 'all') {
+      const e = s.e; if (e == null) return false;
+      if (mood === 'calm' && e >= 45) return false;
+      if (mood === 'mid' && (e < 45 || e > 70)) return false;
+      if (mood === 'hi' && e <= 70) return false;
+    }
+    return true;
+  });
+}
+
+function renderStats() {
+  const artists = new Set(DATA.map(s => s.a)).size;
+  const counts = {}; DATA.forEach(s => counts[catOf(s)] = (counts[catOf(s)] || 0) + 1);
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const bpms = DATA.map(s => s.b).filter(x => x); const avgB = Math.round(bpms.reduce((a, c) => a + c, 0) / bpms.length);
+  const ic = (bg, col, em) => `<div class="ic" style="background:${bg};color:${col}">${em}</div>`;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat">${ic('#eef2ff', '#4f46e5', '🎵')}<div><div class="num">${DATA.length.toLocaleString()}</div><div class="lbl">סה"כ שירים</div></div></div>
+    <div class="stat">${ic('#ecfdf5', '#10b981', '🎤')}<div><div class="num">${artists.toLocaleString()}</div><div class="lbl">אמנים שונים</div></div></div>
+    <div class="stat">${ic('#fef2f8', '#ec4899', '🏆')}<div><div class="num" style="font-size:15px">${top[0]}</div><div class="lbl">הקטגוריה הגדולה (${top[1]})</div></div></div>
+    <div class="stat">${ic('#fff7ed', '#f97316', '⚡')}<div><div class="num">${avgB || '-'}</div><div class="lbl">קצב ממוצע (BPM)</div></div></div>`;
+}
+
+function renderDonut() {
+  const counts = {}; DATA.forEach(s => counts[catOf(s)] = (counts[catOf(s)] || 0) + 1);
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const total = DATA.length; let acc = 0; const R = 62, C = 2 * Math.PI * R;
+  const segs = rows.map(([c, n]) => {
+    const len = n / total * C;
+    const seg = `<circle r="${R}" cx="80" cy="80" fill="none" stroke="${CATCOLORS[c] || '#6366f1'}" stroke-width="26"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-acc}" transform="rotate(-90 80 80)"></circle>`;
+    acc += len; return seg;
+  }).join('');
+  document.getElementById('donut').innerHTML =
+    `<svg width="160" height="160" viewBox="0 0 160 160">${segs}
+     <text x="80" y="76" text-anchor="middle" font-size="22" font-weight="700" fill="#1e293b">${total.toLocaleString()}</text>
+     <text x="80" y="95" text-anchor="middle" font-size="11" fill="#94a3b8">שירים</text></svg>`;
+  document.getElementById('legend').innerHTML = rows.slice(0, 6).map(([c, n]) =>
+    `<div><span class="dot" style="background:${CATCOLORS[c] || '#6366f1'}"></span>${esc(c)} · ${Math.round(n / total * 100)}%</div>`).join('');
+}
+
+function renderCatBars() {
+  const counts = {}; DATA.forEach(s => counts[catOf(s)] = (counts[catOf(s)] || 0) + 1);
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max = rows[0][1];
+  document.getElementById('catbars').innerHTML = rows.map(([c, n]) =>
+    `<div class="barrow"><span class="nm" title="${esc(c)}">${esc(c)}</span>
+     <span class="track"><span class="fill" style="width:${n / max * 100}%;background:${CATCOLORS[c] || '#6366f1'}"></span></span>
+     <span class="vn">${n}</span></div>`).join('');
+}
+
+function renderDecBars() {
+  const dec = {}; DATA.forEach(s => { if (s.y) { const d = Math.floor(s.y / 10) * 10; dec[d] = (dec[d] || 0) + 1; } });
+  const rows = Object.entries(dec).sort((a, b) => a[0] - b[0]);
+  const max = Math.max(...rows.map(r => r[1]));
+  document.getElementById('decbars').innerHTML = rows.map(([d, n]) =>
+    `<div class="barrow"><span class="nm" style="width:60px">${d}s</span>
+     <span class="track"><span class="fill" style="width:${n / max * 100}%;background:#4f46e5"></span></span>
+     <span class="vn">${n}</span></div>`).join('');
+}
+
+function renderModern() {
+  const cnt = {};
+  DATA.forEach(s => { if (s.y >= 2016 && !["Golden Oldies (The Legends)","Jazz, Blues & Soul","Oriental & Arabic Classics"].includes(catOf(s))) cnt[s.a] = (cnt[s.a] || 0) + 1; });
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  document.getElementById('modern').innerHTML =
+    `<h3>⭐ הנבחרת המודרנית שלך</h3><div class="cap">האמנים שגילית הכי הרבה (2016 ואילך)</div>
+     <div class="miniitems">${top.map((t, i) => `<div class="miniitem"><span class="rank">#${i + 1}</span><div class="mt"><b>${esc(t[0])}</b><span>${t[1]} גילויים</span></div></div>`).join('')}</div>`;
+}
+
+function renderDups() {
+  const occ = {}; DATA.forEach(s => { const k = keyOf(s); occ[k] = occ[k] || { ...s, n: 0 }; occ[k].n++; });
+  const dups = Object.values(occ).filter(x => x.n > 1).sort((a, b) => b.n - a.n).slice(0, 4);
+  const el = document.getElementById('dups');
+  if (!dups.length) { el.innerHTML = '<h3>❤️ אהבה ממבט שני</h3><div class="cap">אין שירים כפולים ברשימה זו</div>'; return; }
+  el.innerHTML = `<h3>❤️ אהבה ממבט שני</h3><div class="cap">שירים ששאזמת יותר מפעם אחת — בטח אהבת בלי לשים לב</div>
+    <div class="miniitems">${dups.map(d => `<div class="miniitem"><span class="rank">${d.n}x</span><div class="mt"><b>${esc(d.s)}</b><span>${esc(d.a)}</span></div></div>`).join('')}</div>`;
+}
+
+function renderDict() {
+  const present = {};
+  DATA.forEach(s => { for (const k in GENRE_LIB) if (s.g && s.g.includes(k)) present[k] = (present[k] || 0) + 1; });
+  const keys = Object.keys(present).sort((a, b) => present[b] - present[a]);
+  document.getElementById('gcards').innerHTML = keys.map(k => {
+    const d = GENRE_LIB[k]; const ex = DATA.find(s => s.g && s.g.includes(k));
+    return `<div class="gcard"><div class="em">${d.emoji}</div><div class="gt">${d.title} <span style="color:#94a3b8;font-size:11px">(${present[k]})</span></div>
+      <div class="gd">${d.desc}</div>
+      ${ex ? `<div class="ex">🎵 <b>${esc(ex.s)}</b> · ${esc(ex.a)}</div>` : ''}
+      <div class="box edu">📘 ${d.edu}</div><div class="box fun">💡 ${d.fun}</div></div>`;
+  }).join('') || '<div style="color:#94a3b8;padding:10px">לא נמצאו ז\'אנרים מוכרים ברשימה.</div>';
+}
+
+function renderChips() {
+  const counts = {}; DATA.forEach(s => counts[catOf(s)] = (counts[catOf(s)] || 0) + 1);
+  document.getElementById('chips').innerHTML = ['הכל', ...CATS].map(c => {
+    const n = c === 'הכל' ? DATA.length : (counts[c] || 0);
+    return `<button class="chip ${c === activeCat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)} <span class="n">(${n})</span></button>`;
+  }).join('');
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { activeCat = b.dataset.c; shown = 60; renderChips(); renderRows(); });
+}
+
+function renderRows() {
+  const list = filtered();
+  document.getElementById('count').textContent = `${list.length.toLocaleString()} שירים` + (activeCat !== 'הכל' ? ` · ${activeCat}` : '');
+  document.getElementById('rows').innerHTML = list.slice(0, shown).map(s => {
+    const i = DATA.indexOf(s), cur = catOf(s), fixed = !!fixes[keyOf(s)];
+    const yt = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(s.a + ' ' + s.s);
+    return `<tr>
+      <td>${s.id ? `<button class="play" data-id="${s.id}" title="נגן">▶</button>` : ''}</td>
+      <td class="song">${esc(s.s)}</td>
+      <td class="artist">${esc(s.a)}</td>
+      <td>${s.y || ''}</td>
+      <td><select class="cat ${fixed ? 'fixed' : ''}" data-i="${i}">
+        ${CATS.map(c => `<option ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+      </select> <a class="yt" href="${yt}" target="_blank">יוטיוב</a></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('more').style.display = list.length > shown ? '' : 'none';
+  document.querySelectorAll('#rows select').forEach(sel => sel.onchange = () => {
+    const s = DATA[+sel.dataset.i];
+    if (sel.value === s.c) delete fixes[keyOf(s)]; else fixes[keyOf(s)] = sel.value;
+    localStorage.setItem(FIX_KEY, JSON.stringify(fixes));
+    renderStats(); renderCatBars(); renderChips(); renderRows();
+  });
+  document.querySelectorAll('.play').forEach(b => b.onclick = () => playTrack(b.dataset.id));
+}
+
+function renderInfo() {
+  const el = document.getElementById('listInfo');
+  if (!listLabel) { el.textContent = ''; return; }
+  el.innerHTML = `📂 ${listLabel} — ${DATA.length.toLocaleString()} שירים · <a href="#" id="revert">חזור לרשימה המקורית</a>`;
+  document.getElementById('revert').onclick = e => { e.preventDefault(); localStorage.removeItem(UP_KEY); DATA = SONGS; listLabel = ''; activeCat = 'הכל'; shown = 60; renderAll(); };
+}
+
+// --- Embedded Spotify player ---
+function playTrack(id) {
+  document.getElementById('pframe').src = 'https://open.spotify.com/embed/track/' + id + '?utm_source=generator';
+  document.getElementById('player').style.display = 'block';
+}
+document.getElementById('pclose').onclick = () => { document.getElementById('player').style.display = 'none'; document.getElementById('pframe').src = ''; };
+
+// --- Search / mood / paging ---
+document.getElementById('q').oninput = e => { query = e.target.value; shown = 60; renderRows(); };
+document.getElementById('mood').onchange = e => { mood = e.target.value; shown = 60; renderRows(); };
+document.getElementById('more').onclick = () => { shown += 60; renderRows(); };
+
+// --- Upload + classify ---
+document.getElementById('up').onclick = () => document.getElementById('file').click();
+document.getElementById('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const rows = parseCSV(r.result); if (rows.length < 2) { alert('הקובץ ריק או לא תקין'); return; }
+    const h = rows[0].map(x => x.trim());
+    const songs = rows.slice(1).map(row => { const o = {}; h.forEach((k, i) => o[k] = row[i]); return o; })
+      .filter(o => o.Song && o.Artist).map(o => ({
+        id: o['Spotify Track Id'] || null, s: o.Song, a: o.Artist,
+        y: parseInt((o['Album Date'] || '').substring(0, 4)) || null, c: classify(o),
+        g: (o.Genres || '').toLowerCase(), e: parseInt(o.Energy) || null, b: parseInt(o.BPM) || null,
+        v: parseInt(o.Valence) || null, d: parseInt(o.Dance) || null,
+      }));
+    if (!songs.length) { alert('לא נמצאו שירים — ודא שזה ייצוא CSV של Shazam'); return; }
+    listLabel = `${f.name} (הועלה ${new Date().toLocaleDateString('he-IL')})`;
+    try { localStorage.setItem(UP_KEY, JSON.stringify({ songs, name: f.name, date: new Date().toLocaleDateString('he-IL') })); } catch (er) {}
+    DATA = songs; activeCat = 'הכל'; shown = 60; renderAll();
+    alert(`נטענו וסווגו ${songs.length} שירים!`);
+  };
+  r.readAsText(f); e.target.value = '';
+};
+
+// --- Download CSV (with Spotify Track ID for import) ---
+document.getElementById('dl').onclick = () => {
+  const list = filtered();
+  const rows = [['Track Name', 'Artist', 'Year', 'Category', 'Spotify Track Id', 'Spotify URI']];
+  list.forEach(s => rows.push([s.s, s.a, s.y || '', catOf(s), s.id || '', s.id ? 'spotify:track:' + s.id : '']));
+  const csv = '﻿' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'playlist_' + (activeCat === 'הכל' ? 'all' : activeCat).replace(/[^\w֐-׿]+/g, '_') + '.csv';
+  a.click();
+};
+
+// --- Create playlist in Spotify account ---
+document.getElementById('sp').onclick = () => {
+  const list = filtered();
+  const ids = list.map(s => s.id).filter(Boolean);
+  if (!ids.length) { alert('אין שירים עם מזהה ספוטיפיי בסינון הנוכחי'); return; }
+  const name = 'Shazam — ' + (activeCat === 'הכל' ? 'הכל' : activeCat);
+  spotifyCreatePlaylist(name, ids);
+};
+
+function renderAll() { renderStats(); renderDonut(); renderCatBars(); renderDecBars(); renderModern(); renderDups(); renderDict(); renderChips(); renderRows(); renderInfo(); }
+renderAll();
+if (typeof spotifyHandleRedirect === 'function') spotifyHandleRedirect();
+</script>
+</body>
+</html>
