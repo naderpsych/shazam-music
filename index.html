@@ -125,6 +125,17 @@
     <button class="btn b-spotify" id="sp">🟢 צור פלייליסט בספוטיפיי</button>
     <input type="file" id="file" accept=".csv" hidden>
   </div>
+  <div class="bar" id="dateControls" style="display:none">
+    <span style="font-size:13px;color:#475569">🗓️ תאריך שאזאם:</span>
+    <select id="sort">
+      <option value="none">ללא מיון</option>
+      <option value="new">מהחדש לישן</option>
+      <option value="old">מהישן לחדש</option>
+    </select>
+    <label style="font-size:13px;color:#475569">מ־<input type="date" id="from"></label>
+    <label style="font-size:13px;color:#475569">עד<input type="date" id="to"></label>
+    <button class="btn" id="clearDates" style="background:#94a3b8">נקה</button>
+  </div>
   <div class="count" id="listInfo"></div>
   <div class="count" id="count"></div>
 
@@ -138,11 +149,11 @@
 
 <div id="player"><button class="x" id="pclose">✕ סגור נגן</button><iframe id="pframe" allow="encrypted-media"></iframe></div>
 
-<script src="songs.js?v=6"></script>
-<script src="artist_map.js?v=6"></script>
-<script src="genres.js?v=6"></script>
-<script src="rules.js?v=6"></script>
-<script src="spotify.js?v=6"></script>
+<script src="songs.js?v=7"></script>
+<script src="artist_map.js?v=7"></script>
+<script src="genres.js?v=7"></script>
+<script src="rules.js?v=7"></script>
+<script src="spotify.js?v=7"></script>
 <script>
 const CATS = ["ישראלי","Oriental & Arabic Classics","Modern Arabic Pop","Chanson & French",
   "Jazz, Blues & Soul","Golden Oldies (The Legends)","Rock & Alternative Anthems",
@@ -163,10 +174,18 @@ let DATA = SONGS, listLabel = '';
 try { const u = JSON.parse(localStorage.getItem(UP_KEY)); if (u && u.songs && u.songs.length) { DATA = u.songs; listLabel = `${u.name} (הועלה ${u.date})`; } } catch (e) {}
 
 let activeCat = 'הכל', query = '', mood = 'all', shown = 60;
+let sortMode = 'none', dateFrom = '', dateTo = '';
+
+// Real Shazam dates exist only if the file has more than one distinct date.
+function hasRealDates() {
+  const seen = new Set();
+  for (const s of DATA) { if (s.t) { seen.add(s.t); if (seen.size > 1) return true; } }
+  return false;
+}
 
 function filtered() {
   const q = query.trim().toLowerCase();
-  return DATA.filter(s => {
+  let list = DATA.filter(s => {
     if (activeCat !== 'הכל' && catOf(s) !== activeCat) return false;
     if (q && !s.s.toLowerCase().includes(q) && !s.a.toLowerCase().includes(q)) return false;
     if (mood !== 'all') {
@@ -175,8 +194,22 @@ function filtered() {
       if (mood === 'mid' && (e < 45 || e > 70)) return false;
       if (mood === 'hi' && e <= 70) return false;
     }
+    if (dateFrom && (!s.t || s.t < dateFrom)) return false;
+    if (dateTo && (!s.t || s.t > dateTo)) return false;
     return true;
   });
+  if (sortMode === 'new') list = [...list].sort((a, b) => (b.t || '').localeCompare(a.t || ''));
+  else if (sortMode === 'old') list = [...list].sort((a, b) => (a.t || '').localeCompare(b.t || ''));
+  return list;
+}
+
+function renderDateControls() {
+  const box = document.getElementById('dateControls');
+  if (!hasRealDates()) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const dates = DATA.map(s => s.t).filter(Boolean).sort();
+  document.getElementById('from').min = document.getElementById('to').min = dates[0];
+  document.getElementById('from').max = document.getElementById('to').max = dates[dates.length - 1];
 }
 
 function renderStats() {
@@ -314,6 +347,14 @@ document.getElementById('pclose').onclick = () => { document.getElementById('pla
 document.getElementById('q').oninput = e => { query = e.target.value; shown = 60; renderRows(); };
 document.getElementById('mood').onchange = e => { mood = e.target.value; shown = 60; renderRows(); };
 document.getElementById('more').onclick = () => { shown += 60; renderRows(); };
+document.getElementById('sort').onchange = e => { sortMode = e.target.value; shown = 60; renderRows(); };
+document.getElementById('from').onchange = e => { dateFrom = e.target.value; shown = 60; renderRows(); };
+document.getElementById('to').onchange = e => { dateTo = e.target.value; shown = 60; renderRows(); };
+document.getElementById('clearDates').onclick = () => {
+  sortMode = 'none'; dateFrom = ''; dateTo = '';
+  document.getElementById('sort').value = 'none'; document.getElementById('from').value = ''; document.getElementById('to').value = '';
+  shown = 60; renderRows();
+};
 
 // --- Upload + classify ---
 document.getElementById('up').onclick = () => document.getElementById('file').click();
@@ -327,7 +368,7 @@ document.getElementById('file').onchange = e => {
     const songs = rows.slice(1).map(row => { const o = {}; h.forEach((k, i) => o[k] = row[i]); return o; })
       .filter(o => o.Song && o.Artist).map(o => ({
         id: o['Spotify Track Id'] || null, s: o.Song, a: o.Artist,
-        y: parseInt((o['Album Date'] || '').substring(0, 4)) || null, c: classify(o),
+        y: parseInt((o['Album Date'] || '').substring(0, 4)) || null, t: o['Added At'] || null, c: classify(o),
         g: (o.Genres || '').toLowerCase(), e: parseInt(o.Energy) || null, b: parseInt(o.BPM) || null,
         v: parseInt(o.Valence) || null, d: parseInt(o.Dance) || null,
       }));
@@ -361,7 +402,7 @@ document.getElementById('sp').onclick = () => {
   spotifyCreatePlaylist(name, ids);
 };
 
-function renderAll() { renderStats(); renderDonut(); renderCatBars(); renderDecBars(); renderModern(); renderDups(); renderDict(); renderChips(); renderRows(); renderInfo(); }
+function renderAll() { renderStats(); renderDonut(); renderCatBars(); renderDecBars(); renderModern(); renderDups(); renderDict(); renderChips(); renderDateControls(); renderRows(); renderInfo(); }
 renderAll();
 if (typeof spotifyHandleRedirect === 'function') spotifyHandleRedirect();
 </script>
