@@ -10,6 +10,8 @@
   .wrap { max-width: 1100px; margin: 0 auto; }
   h1 { font-size: 24px; margin-bottom: 2px; }
   .sub { color: #64748b; margin-bottom: 18px; font-size: 14px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .up-top { padding: 12px 20px; font-size: 14px; border-radius: 12px; box-shadow: 0 4px 14px rgba(79,70,229,.25); }
   .row { display: grid; gap: 14px; margin-bottom: 16px; }
   .r2 { grid-template-columns: 1fr 1fr; }
   .r3 { grid-template-columns: repeat(3, 1fr); }
@@ -82,8 +84,13 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🎵 המוזיקה שלי</h1>
-  <div class="sub">כל השירים שגילית ב-Shazam, מסודרים לקטגוריות</div>
+  <div class="head">
+    <div>
+      <h1>🎵 המוזיקה שלי</h1>
+      <div class="sub">כל השירים שגילית ב-Shazam, מסודרים לקטגוריות</div>
+    </div>
+    <button class="btn b-indigo up-top" id="upTop">⬆ העלה רשימת שאזאם חדשה</button>
+  </div>
 
   <div class="stats" id="stats"></div>
 
@@ -131,11 +138,11 @@
 
 <div id="player"><button class="x" id="pclose">✕ סגור נגן</button><iframe id="pframe" allow="encrypted-media"></iframe></div>
 
-<script src="songs.js?v=5"></script>
-<script src="artist_map.js?v=5"></script>
-<script src="genres.js?v=5"></script>
-<script src="rules.js?v=5"></script>
-<script src="spotify.js?v=5"></script>
+<script src="songs.js?v=6"></script>
+<script src="artist_map.js?v=6"></script>
+<script src="genres.js?v=6"></script>
+<script src="rules.js?v=6"></script>
+<script src="spotify.js?v=6"></script>
 <script>
 const CATS = ["ישראלי","Oriental & Arabic Classics","Modern Arabic Pop","Chanson & French",
   "Jazz, Blues & Soul","Golden Oldies (The Legends)","Rock & Alternative Anthems",
@@ -310,6 +317,7 @@ document.getElementById('more').onclick = () => { shown += 60; renderRows(); };
 
 // --- Upload + classify ---
 document.getElementById('up').onclick = () => document.getElementById('file').click();
+document.getElementById('upTop').onclick = () => document.getElementById('file').click();
 document.getElementById('file').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
