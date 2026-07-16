@@ -80,6 +80,10 @@
   #player { position: fixed; bottom: 0; left: 0; right: 0; background: #111827; padding: 6px; box-shadow: 0 -2px 12px rgba(0,0,0,.25); z-index: 40; display: none; }
   #player iframe { width: 100%; height: 80px; border: 0; border-radius: 10px; }
   #player .x { position: absolute; top: -30px; left: 10px; background: #111827; color: #fff; border: none; border-radius: 8px 8px 0 0; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+  .pctl { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 4px 8px 6px; color: #fff; }
+  .pctl button { background: #1db954; color: #fff; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer; }
+  .pctl #ptitle { font-size: 13px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pembed iframe { width: 100%; height: 80px; border: 0; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -120,6 +124,7 @@
       <option value="mid">🎶 בינוני</option>
       <option value="hi">⚡ אנרגטי</option>
     </select>
+    <button class="btn b-spotify" id="playAll">▶ נגן את הרשימה</button>
     <button class="btn b-indigo" id="up">⬆ העלה רשימה</button>
     <button class="btn b-green" id="dl">⬇ הורד CSV</button>
     <button class="btn b-spotify" id="sp">🟢 צור פלייליסט בספוטיפיי</button>
@@ -147,13 +152,22 @@
   <div class="note">תיקוני קטגוריה נשמרים בדפדפן שלך · הנגן והייצוא משתמשים ב-Spotify Track ID לזיהוי מדויק</div>
 </div>
 
-<div id="player"><button class="x" id="pclose">✕ סגור נגן</button><iframe id="pframe" allow="encrypted-media"></iframe></div>
+<div id="player">
+  <button class="x" id="pclose">✕ סגור נגן</button>
+  <div class="pctl">
+    <button id="pprev" title="הקודם">⏮</button>
+    <span id="ptitle"></span>
+    <button id="pnext" title="הבא">⏭</button>
+  </div>
+  <div id="pembed"><div id="pembed-inner"></div></div>
+</div>
 
-<script src="songs.js?v=7"></script>
-<script src="artist_map.js?v=7"></script>
-<script src="genres.js?v=7"></script>
-<script src="rules.js?v=7"></script>
-<script src="spotify.js?v=7"></script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script src="songs.js?v=8"></script>
+<script src="artist_map.js?v=8"></script>
+<script src="genres.js?v=8"></script>
+<script src="rules.js?v=8"></script>
+<script src="spotify.js?v=8"></script>
 <script>
 const CATS = ["ישראלי","Oriental & Arabic Classics","Modern Arabic Pop","Chanson & French",
   "Jazz, Blues & Soul","Golden Oldies (The Legends)","Rock & Alternative Anthems",
@@ -326,7 +340,10 @@ function renderRows() {
     localStorage.setItem(FIX_KEY, JSON.stringify(fixes));
     renderStats(); renderCatBars(); renderChips(); renderRows();
   });
-  document.querySelectorAll('.play').forEach(b => b.onclick = () => playTrack(b.dataset.id));
+  document.querySelectorAll('.play').forEach(b => b.onclick = () => {
+    const all = filtered().filter(s => s.id);
+    playQueue(all, Math.max(all.findIndex(s => s.id === b.dataset.id), 0));
+  });
 }
 
 function renderInfo() {
@@ -336,12 +353,43 @@ function renderInfo() {
   document.getElementById('revert').onclick = e => { e.preventDefault(); localStorage.removeItem(UP_KEY); DATA = SONGS; listLabel = ''; activeCat = 'הכל'; shown = 60; renderAll(); };
 }
 
-// --- Embedded Spotify player ---
-function playTrack(id) {
-  document.getElementById('pframe').src = 'https://open.spotify.com/embed/track/' + id + '?utm_source=generator';
-  document.getElementById('player').style.display = 'block';
+// --- Embedded Spotify player with queue (auto-advance via iFrame API) ---
+let spApi = null, spController = null, queue = [], qi = 0, advancedFor = -1;
+window.onSpotifyIframeApiReady = api => { spApi = api; };
+
+function updateTitle() {
+  const s = queue[qi];
+  document.getElementById('ptitle').textContent = s ? `${qi + 1}/${queue.length} · ${s.s} — ${s.a}` : '';
 }
-document.getElementById('pclose').onclick = () => { document.getElementById('player').style.display = 'none'; document.getElementById('pframe').src = ''; };
+function playCurrent() {
+  const s = queue[qi]; if (!s) return;
+  document.getElementById('player').style.display = 'block';
+  updateTitle(); advancedFor = -1;
+  const uri = 'spotify:track:' + s.id;
+  if (spController) { spController.loadUri(uri); spController.play(); return; }
+  const boot = () => spApi.createController(document.getElementById('pembed-inner'), { uri, height: 80 }, c => {
+    spController = c;
+    c.addListener('playback_update', e => {
+      const d = e.data || {};
+      if (d.duration > 0 && d.position >= d.duration - 400 && advancedFor !== qi) { advancedFor = qi; nextTrack(); }
+    });
+    c.play();
+  });
+  if (spApi) boot(); else { // API script not ready yet — poll briefly
+    let tries = 0; const iv = setInterval(() => { if (spApi || ++tries > 40) { clearInterval(iv); if (spApi) boot(); } }, 250);
+  }
+}
+function nextTrack() { if (qi < queue.length - 1) { qi++; playCurrent(); } }
+function prevTrack() { if (qi > 0) { qi--; playCurrent(); } }
+function playQueue(list, start) { queue = list; qi = start || 0; playCurrent(); }
+document.getElementById('playAll').onclick = () => {
+  const all = filtered().filter(s => s.id);
+  if (!all.length) { alert('אין שירים ברשימה הנוכחית'); return; }
+  playQueue(all, 0);
+};
+document.getElementById('pnext').onclick = nextTrack;
+document.getElementById('pprev').onclick = prevTrack;
+document.getElementById('pclose').onclick = () => { document.getElementById('player').style.display = 'none'; if (spController) spController.pause(); };
 
 // --- Search / mood / paging ---
 document.getElementById('q').oninput = e => { query = e.target.value; shown = 60; renderRows(); };
