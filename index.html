@@ -93,7 +93,10 @@
       <h1>🎵 המוזיקה שלי</h1>
       <div class="sub">כל השירים שגילית ב-Shazam, מסודרים לקטגוריות</div>
     </div>
-    <button class="btn b-indigo up-top" id="upTop">⬆ העלה רשימת שאזאם חדשה</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn b-spotify up-top" id="spConnect">🔗 התחבר לספוטיפיי</button>
+      <button class="btn b-indigo up-top" id="upTop">⬆ העלה רשימת שאזאם חדשה</button>
+    </div>
   </div>
 
   <div class="stats" id="stats"></div>
@@ -163,11 +166,11 @@
 </div>
 
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
-<script src="songs.js?v=8"></script>
-<script src="artist_map.js?v=8"></script>
-<script src="genres.js?v=8"></script>
-<script src="rules.js?v=8"></script>
-<script src="spotify.js?v=8"></script>
+<script src="songs.js?v=9"></script>
+<script src="artist_map.js?v=9"></script>
+<script src="genres.js?v=9"></script>
+<script src="rules.js?v=9"></script>
+<script src="spotify.js?v=9"></script>
 <script>
 const CATS = ["ישראלי","Oriental & Arabic Classics","Modern Arabic Pop","Chanson & French",
   "Jazz, Blues & Soul","Golden Oldies (The Legends)","Rock & Alternative Anthems",
@@ -452,7 +455,12 @@ document.getElementById('sp').onclick = () => {
 
 function renderAll() { renderStats(); renderDonut(); renderCatBars(); renderDecBars(); renderModern(); renderDups(); renderDict(); renderChips(); renderDateControls(); renderRows(); renderInfo(); }
 renderAll();
+document.getElementById('spConnect').onclick = () => {
+  if (sessionStorage.getItem('sp_token')) { alert('אתה כבר מחובר לספוטיפיי ✓'); return; }
+  spotifyLogin();
+};
 if (typeof spotifyHandleRedirect === 'function') spotifyHandleRedirect();
+if (typeof spotifyUpdateButton === 'function') spotifyUpdateButton();
 </script>
 </body>
 </html>

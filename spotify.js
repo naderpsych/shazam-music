@@ -33,6 +33,13 @@ async function spotifyToken() {
   return null;
 }
 
+function spotifyUpdateButton() {
+  const b = document.getElementById('spConnect');
+  if (!b) return;
+  if (sessionStorage.getItem('sp_token')) { b.textContent = '✓ מחובר לספוטיפיי'; b.style.background = '#15803d'; }
+  else { b.textContent = '🔗 התחבר לספוטיפיי'; b.style.background = ''; }
+}
+
 async function spotifyHandleRedirect() {
   const code = new URLSearchParams(location.search).get('code');
   if (!code) return;
@@ -48,6 +55,7 @@ async function spotifyHandleRedirect() {
   if (data.access_token) {
     sessionStorage.setItem('sp_token', data.access_token);
     history.replaceState({}, '', REDIRECT_URI);
+    spotifyUpdateButton();
     const pending = sessionStorage.getItem('sp_pending');
     if (pending) { sessionStorage.removeItem('sp_pending'); const p = JSON.parse(pending); spotifyCreatePlaylist(p.name, p.ids); }
   }
