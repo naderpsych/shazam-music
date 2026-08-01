@@ -1,6 +1,26 @@
 // Classification rules — same logic used to build the baked-in list.
 // ARTIST_MAP is loaded from artist_map.js (generated from data/artist_map.json).
 
+// Tarab / classical-Arabic singers. Shazam often tags them only "egyptian pop",
+// which is why the singer's name has to decide instead of the genre string.
+const TARAB_ARTISTS = [
+  'fairuz', 'fairouz', 'feyrouz', 'umm kulthum', 'um kalthoum', 'oum kalthoum', 'om kalsoum',
+  'abdel halim', 'abdul halim', 'farid al atrash', 'farid el atrache', 'mohammed abdel wahab',
+  'mohamed abdel wahab', 'wadih el safi', 'wadi el safi', 'sabah fakhri', 'sabah', 'toni hanna',
+  'tony hanna', 'nasri shamseddine', 'zaki nassif', 'elias rahbani', 'majida el roumi',
+  'warda', 'najat', 'asmahan', 'george wassouf', 'wael jassar', 'mayada el hennawy',
+  'angham', 'sabah el sagheera', 'hoda', 'samira tewfik', 'salima murad', 'nazem al ghazali',
+  'saleh abdel hay', 'karem mahmoud', 'shadia', 'najah salam', 'ilham al madfai', 'marcel khalife',
+];
+
+// Canonical category order — the index is what enrich.js stores and what the
+// colour palette / legend order follow. Never reorder without rebuilding enrich.js.
+const CAT_ORDER = [
+  'ישראלי', 'Oriental & Arabic Classics', 'Modern Arabic Pop', 'Chanson & French',
+  'Jazz, Blues & Soul', 'Golden Oldies (The Legends)', 'Rock & Alternative Anthems',
+  'Indie, Folk & Bedroom', 'Techno & Electronic Club', 'Hip Hop, R&B & Groove', 'Modern Pop Hits',
+];
+
 const CAT_NAMES = {
   IL: 'ישראלי', ELEC: 'Techno & Electronic Club', ROCK: 'Rock & Alternative Anthems',
   INDIE: 'Indie, Folk & Bedroom', HIPHOP: 'Hip Hop, R&B & Groove', JAZZ: 'Jazz, Blues & Soul',
@@ -25,7 +45,10 @@ function classify(s) {
   const isArabic = arb.test(artist) || arb.test(song) ||
     /arab|oriental|egypt|lebanon|khaleeji|maghreb|dabke|tarab|\brai\b|sha{1,2}bi/.test(g);
   if (isArabic) {
-    if ((year && year < 1995) || /tarab|classical/.test(g)) return CAT_NAMES.ARCLASSIC;
+    // Tarab = the classical Arabic tradition (maqam, oud/ney/violin, long improvised vocals).
+    // Album re-release years are unreliable, so the singer decides — not the date.
+    if (typeof TARAB_ARTISTS !== 'undefined' && TARAB_ARTISTS.some(n => artistLc.includes(n))) return CAT_NAMES.ARCLASSIC;
+    if (/tarab|classical arab|muwashshah|andalusian/.test(g)) return CAT_NAMES.ARCLASSIC;
     return CAT_NAMES.ARMODERN;
   }
 
@@ -38,6 +61,19 @@ function classify(s) {
   if (/indie|folk|acoustic|singer-songwriter|bedroom|dream pop|lo-fi|americana|country/.test(g)) return CAT_NAMES.INDIE;
   if (/rock|alternative|britpop/.test(g)) return CAT_NAMES.ROCK;
   return CAT_NAMES.POP;
+}
+
+// Stable lookup key for a track, so an uploaded CSV can be matched against the
+// enrichment table (genres / Spotify id / audio features) built from the rich export.
+function normPart(s) {
+  return (s || '').toLowerCase()
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/\s-\s.*$/, ' ')
+    .replace(/[^0-9a-z֐-׿؀-ۿ]+/gi, ' ')
+    .trim().replace(/\s+/g, ' ');
+}
+function normKey(title, artist) {
+  return normPart(title) + '|' + normPart((artist || '').split(/,|&|feat/i)[0]);
 }
 
 // Tolerant CSV parser: survives unescaped quotes inside quoted fields

@@ -1,86 +1,173 @@
-// Spotify account connection via Authorization Code + PKCE (no server needed).
-// SETUP (one time): create a free app at https://developer.spotify.com/dashboard,
-// copy its Client ID here, and add this page's URL as a Redirect URI.
-const SPOTIFY_CLIENT_ID = ''; // <-- fill in after registering the app
-const SPOTIFY_SCOPES = 'playlist-modify-public playlist-modify-private';
-const REDIRECT_URI = location.origin + location.pathname;
+// Spotify: connect account (PKCE), play full tracks (Web Playback SDK, Premium),
+// and create playlists. No server required.
+//
+// The Client ID is entered once by the user inside the page (setup dialog) and kept
+// in localStorage, so nothing here needs to be hard-coded or redeployed.
 
-function b64url(bytes) {
-  return btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const SP_SCOPES = [
+  'streaming', 'user-read-email', 'user-read-private',
+  'user-read-playback-state', 'user-modify-playback-state',
+  'playlist-modify-public', 'playlist-modify-private',
+].join(' ');
+
+const SP_REDIRECT = location.origin + location.pathname;
+const SP_ID_KEY = 'sp_client_id';
+const SP_TOK_KEY = 'sp_tokens';
+
+const spClientId = () => localStorage.getItem(SP_ID_KEY) || '';
+
+// ---------- helpers ----------
+function spB64(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-async function sha256(str) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); }
-function randomStr(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a); }
+function spRandom(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return spB64(a); }
 
-async function spotifyLogin() {
-  if (!SPOTIFY_CLIENT_ID) {
-    alert('כדי לחבר את החשבון צריך הגדרה חד-פעמית (5 דקות):\n1. להיכנס ל-developer.spotify.com/dashboard\n2. ליצור אפליקציה (חינם) ולהעתיק את ה-Client ID\n3. להוסיף את כתובת האתר כ-Redirect URI\nתגיד לי כשיש לך Client ID ואשלים את החיבור.');
-    return false;
-  }
-  const verifier = randomStr(64);
-  const challenge = b64url(await sha256(verifier));
-  sessionStorage.setItem('sp_verifier', verifier);
-  const p = new URLSearchParams({
-    client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: REDIRECT_URI,
-    scope: SPOTIFY_SCOPES, code_challenge_method: 'S256', code_challenge: challenge,
-  });
-  location.href = 'https://accounts.spotify.com/authorize?' + p.toString();
-  return true;
+function spSaveTokens(d) {
+  const cur = spTokens() || {};
+  localStorage.setItem(SP_TOK_KEY, JSON.stringify({
+    access: d.access_token,
+    refresh: d.refresh_token || cur.refresh,
+    expires: Date.now() + (d.expires_in || 3600) * 1000 - 60000,
+  }));
 }
+function spTokens() { try { return JSON.parse(localStorage.getItem(SP_TOK_KEY)); } catch (e) { return null; } }
+function spConnected() { const t = spTokens(); return !!(t && t.refresh); }
+function spLogout() { localStorage.removeItem(SP_TOK_KEY); spUpdateUI(); }
 
-async function spotifyToken() {
-  let tok = sessionStorage.getItem('sp_token');
-  if (tok) return tok;
-  return null;
-}
-
-function spotifyUpdateButton() {
-  const b = document.getElementById('spConnect');
-  if (!b) return;
-  if (sessionStorage.getItem('sp_token')) { b.textContent = '✓ מחובר לספוטיפיי'; b.style.background = '#15803d'; }
-  else { b.textContent = '🔗 התחבר לספוטיפיי'; b.style.background = ''; }
-}
-
-async function spotifyHandleRedirect() {
-  const code = new URLSearchParams(location.search).get('code');
-  if (!code) return;
-  const verifier = sessionStorage.getItem('sp_verifier');
+// Always returns a valid access token, refreshing when needed.
+async function spToken() {
+  const t = spTokens();
+  if (!t) return null;
+  if (t.access && Date.now() < t.expires) return t.access;
+  if (!t.refresh) return null;
   const body = new URLSearchParams({
-    client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code,
-    redirect_uri: REDIRECT_URI, code_verifier: verifier,
+    client_id: spClientId(), grant_type: 'refresh_token', refresh_token: t.refresh,
   });
-  const res = await fetch('https://accounts.spotify.com/api/token', {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
   });
-  const data = await res.json();
-  if (data.access_token) {
-    sessionStorage.setItem('sp_token', data.access_token);
-    history.replaceState({}, '', REDIRECT_URI);
-    spotifyUpdateButton();
-    const pending = sessionStorage.getItem('sp_pending');
-    if (pending) { sessionStorage.removeItem('sp_pending'); const p = JSON.parse(pending); spotifyCreatePlaylist(p.name, p.ids); }
-  }
+  const d = await r.json();
+  if (!d.access_token) { spLogout(); return null; }
+  spSaveTokens(d);
+  return d.access_token;
 }
 
-async function spotifyCreatePlaylist(name, ids) {
-  let tok = await spotifyToken();
-  if (!tok) {
-    sessionStorage.setItem('sp_pending', JSON.stringify({ name, ids }));
-    spotifyLogin();
-    return;
-  }
+// ---------- login ----------
+async function spLogin() {
+  if (!spClientId()) { spShowSetup(); return; }
+  const verifier = spRandom(64);
+  const challenge = spB64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  localStorage.setItem('sp_verifier', verifier);
+  location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    client_id: spClientId(), response_type: 'code', redirect_uri: SP_REDIRECT,
+    scope: SP_SCOPES, code_challenge_method: 'S256', code_challenge: challenge,
+  });
+}
+
+async function spHandleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('error')) { history.replaceState({}, '', SP_REDIRECT); alert('החיבור בוטל: ' + p.get('error')); return; }
+  const code = p.get('code');
+  if (!code) return;
+  const verifier = localStorage.getItem('sp_verifier');
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: spClientId(), grant_type: 'authorization_code', code,
+      redirect_uri: SP_REDIRECT, code_verifier: verifier,
+    }),
+  });
+  const d = await r.json();
+  history.replaceState({}, '', SP_REDIRECT);
+  if (d.access_token) { spSaveTokens(d); spUpdateUI(); spInitPlayer(); }
+  else alert('החיבור נכשל. ודא שכתובת ה-Redirect URI בספוטיפיי היא בדיוק:\n' + SP_REDIRECT);
+}
+
+// ---------- setup dialog (one time) ----------
+function spShowSetup() {
+  const box = document.getElementById('spSetup');
+  document.getElementById('spRedirectShow').textContent = SP_REDIRECT;
+  document.getElementById('spIdInput').value = spClientId();
+  box.style.display = 'flex';
+}
+function spSaveSetup() {
+  const v = document.getElementById('spIdInput').value.trim();
+  if (!/^[a-z0-9]{20,}$/i.test(v)) { alert('ה-Client ID לא נראה תקין (מחרוזת ארוכה של אותיות ומספרים).'); return; }
+  localStorage.setItem(SP_ID_KEY, v);
+  document.getElementById('spSetup').style.display = 'none';
+  spLogin();
+}
+
+// ---------- Web Playback SDK (full tracks, Premium) ----------
+let spPlayer = null, spDeviceId = null, spPremium = false, spOnEnd = null;
+
+window.onSpotifyWebPlaybackSDKReady = () => { if (spConnected()) spInitPlayer(); };
+
+async function spInitPlayer() {
+  if (spPlayer || !window.Spotify || !spConnected()) return;
+  const tok = await spToken();
+  if (!tok) return;
+  // Free accounts can't stream through the SDK — check before creating a player.
+  const me = await (await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: 'Bearer ' + tok } })).json();
+  spPremium = me.product === 'premium';
+  spUpdateUI();
+  if (!spPremium) return;
+
+  spPlayer = new Spotify.Player({
+    name: 'המוזיקה שלי (Shazam)',
+    getOAuthToken: cb => spToken().then(cb),
+    volume: 0.8,
+  });
+  spPlayer.addListener('ready', ({ device_id }) => { spDeviceId = device_id; spUpdateUI(); });
+  spPlayer.addListener('not_ready', () => { spDeviceId = null; });
+  spPlayer.addListener('authentication_error', () => { spLogout(); });
+  spPlayer.addListener('account_error', () => { spPremium = false; spUpdateUI(); });
+  let wasPlaying = false;
+  spPlayer.addListener('player_state_changed', st => {
+    if (!st) return;
+    // track finished: position back to 0 while paused after having played
+    if (st.paused && st.position === 0 && wasPlaying) { wasPlaying = false; if (spOnEnd) spOnEnd(); }
+    else if (!st.paused) wasPlaying = true;
+    if (typeof onSpPlaybackState === 'function') onSpPlaybackState(st);
+  });
+  spPlayer.connect();
+}
+
+async function spPlayUris(uris, offset) {
+  const tok = await spToken();
+  if (!tok || !spDeviceId) return false;
+  const r = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spDeviceId}`, {
+    method: 'PUT', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uris: uris.slice(0, 300), offset: { position: offset || 0 } }),
+  });
+  return r.ok || r.status === 204;
+}
+async function spTogglePlay() { if (spPlayer) spPlayer.togglePlay(); }
+async function spNextTrack() { if (spPlayer) spPlayer.nextTrack(); }
+async function spPrevTrack() { if (spPlayer) spPlayer.previousTrack(); }
+
+// ---------- create playlist ----------
+async function spCreatePlaylist(name, ids) {
+  const tok = await spToken();
+  if (!tok) { spLogin(); return; }
   const H = { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' };
   try {
     const me = await (await fetch('https://api.spotify.com/v1/me', { headers: H })).json();
     const pl = await (await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
-      method: 'POST', headers: H, body: JSON.stringify({ name, description: 'נוצר מרשימת ה-Shazam שלי', public: false }),
+      method: 'POST', headers: H,
+      body: JSON.stringify({ name, description: 'נוצר מרשימת השאזאם שלי', public: false }),
     })).json();
     for (let i = 0; i < ids.length; i += 100) {
-      const uris = ids.slice(i, i + 100).map(id => 'spotify:track:' + id);
-      await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, { method: 'POST', headers: H, body: JSON.stringify({ uris }) });
+      await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ uris: ids.slice(i, i + 100).map(id => 'spotify:track:' + id) }),
+      });
     }
-    if (confirm(`✅ נוצר פלייליסט "${name}" עם ${ids.length} שירים! לפתוח בספוטיפיי?`)) window.open(pl.external_urls.spotify, '_blank');
+    if (confirm(`✅ נוצר פלייליסט "${name}" עם ${ids.length} שירים!\nלפתוח בספוטיפיי?`)) {
+      window.open(pl.external_urls.spotify, '_blank');
+    }
   } catch (e) {
-    sessionStorage.removeItem('sp_token');
-    alert('החיבור פג. נסה שוב.');
+    alert('שגיאה ביצירת הפלייליסט. נסה להתחבר מחדש.');
   }
 }
