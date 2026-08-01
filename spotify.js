@@ -108,12 +108,9 @@ async function spInitPlayer() {
   if (spPlayer || !window.Spotify || !spConnected()) return;
   const tok = await spToken();
   if (!tok) return;
-  // Free accounts can't stream through the SDK — check before creating a player.
-  const me = await (await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: 'Bearer ' + tok } })).json();
-  spPremium = me.product === 'premium';
-  spUpdateUI();
-  if (!spPremium) return;
-
+  // GET /me no longer returns `product` (Feb 2026 dev-mode changes), so Premium can't be
+  // probed up front — create the player and let `account_error` tell us if it isn't allowed.
+  spPremium = true;
   spPlayer = new Spotify.Player({
     name: 'המוזיקה שלי (Shazam)',
     getOAuthToken: cb => spToken().then(cb),
@@ -153,13 +150,15 @@ async function spCreatePlaylist(name, ids) {
   if (!tok) { spLogin(); return; }
   const H = { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' };
   try {
-    const me = await (await fetch('https://api.spotify.com/v1/me', { headers: H })).json();
-    const pl = await (await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
+    // Feb 2026 dev-mode API: POST /me/playlists (not /users/{id}/playlists)
+    // and /playlists/{id}/items (not /tracks).
+    const pl = await (await fetch('https://api.spotify.com/v1/me/playlists', {
       method: 'POST', headers: H,
       body: JSON.stringify({ name, description: 'נוצר מרשימת השאזאם שלי', public: false }),
     })).json();
+    if (!pl.id) throw new Error(pl.error ? pl.error.message : 'create failed');
     for (let i = 0; i < ids.length; i += 100) {
-      await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, {
+      await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/items`, {
         method: 'POST', headers: H,
         body: JSON.stringify({ uris: ids.slice(i, i + 100).map(id => 'spotify:track:' + id) }),
       });
