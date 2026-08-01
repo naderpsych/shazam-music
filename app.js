@@ -147,7 +147,6 @@ function renderStrip() {
 function showApp() {
   $('upload').hidden = true;
   $('app').hidden = false;
-  $('player').style.display = 'block';
   renderAll();
 }
 
@@ -253,15 +252,25 @@ function renderRepeats() {
   $('repExp').classList.toggle('open', repsOpen);
 }
 
+let dictAll = false;
 function renderDict() {
   const c = counts();
-  $('dict').innerHTML = CATS.map((cat, i) => `
+  const order = CATS.map((cat, i) => i).sort((a, b) => c[b] - c[a]);
+  const list = dictAll ? order : order.slice(0, 5);
+  $('dict').innerHTML = list.map(i => `
     <div class="item" data-i="${i}">
-      <button class="q"><i style="background:${fill(i)}"></i><b>${esc(cat.he)}</b><span class="num">${c[i]}</span></button>
+      <button class="q"><i style="background:${fill(i)}"></i><b>${esc(CATS[i].he)}</b><span class="num">${c[i]}</span></button>
       <div class="a">${esc(DICT[i])}</div>
-    </div>`).join('');
+    </div>`).join('') + (order.length > 5
+      ? `<button class="thin" id="dictMore" style="border-bottom:none">
+           <span>${dictAll ? 'הצג פחות' : `עוד ${order.length - 5} קטגוריות`}</span>
+           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" style="${dictAll ? 'transform:rotate(180deg)' : ''}"><path d="m6 9 6 6 6-6"/></svg>
+         </button>` : '');
   $('dict').querySelectorAll('.item').forEach(el =>
     el.querySelector('.q').onclick = () => el.classList.toggle('open'));
+  const more = $('dictMore');
+  if (more) more.onclick = () => { dictAll = !dictAll; renderDict(); };
 }
 
 function renderFilters() {
@@ -383,8 +392,10 @@ function showEmbed() {
 }
 function renderNowPlaying() {
   const s = queue[qi];
-  $('player').style.display = LIB.length ? 'block' : 'none';
-  if (!s) { $('pTitle').textContent = 'לא מתנגן כלום'; $('pArtist').textContent = ''; $('pChip').style.display = 'none'; return; }
+  // The bar only earns its space once there is actually something to show.
+  $('player').style.display = s ? 'block' : 'none';
+  document.body.classList.toggle('has-player', !!s);
+  if (!s) return;
   $('pTitle').textContent = s.s;
   $('pArtist').textContent = s.a;
   $('pChip').style.display = '';
