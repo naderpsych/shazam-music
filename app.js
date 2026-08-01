@@ -260,7 +260,13 @@ function renderDict() {
   $('dict').innerHTML = list.map(i => `
     <div class="item" data-i="${i}">
       <button class="q"><i style="background:${fill(i)}"></i><b>${esc(CATS[i].he)}</b><span class="num">${c[i]}</span></button>
-      <div class="a">${esc(DICT[i])}</div>
+      <div class="a"><div class="songs">${LIB.filter(s => s.c === i).map(s => `
+        <div class="srow">
+          <button class="pbtn" data-k="${esc(normKey(s.s, s.a))}" data-c="${i}" aria-label="נגן">
+            <svg width="9" height="11" viewBox="0 0 14 16" fill="#1DB954"><path d="M0 0v16l14-8z"/></svg>
+          </button>
+          <div style="min-width:0"><div class="tt ell">${esc(s.s)}</div><div class="aa ell">${esc(s.a)}</div></div>
+        </div>`).join('')}</div></div>
     </div>`).join('') + (order.length > 5
       ? `<button class="thin" id="dictMore" style="border-bottom:none">
            <span>${dictAll ? 'הצג פחות' : `עוד ${order.length - 5} קטגוריות`}</span>
@@ -269,6 +275,10 @@ function renderDict() {
          </button>` : '');
   $('dict').querySelectorAll('.item').forEach(el =>
     el.querySelector('.q').onclick = () => el.classList.toggle('open'));
+  $('dict').querySelectorAll('.srow .pbtn').forEach(b => b.onclick = () => {
+    const list = LIB.filter(s => s.c === +b.dataset.c);
+    startPlay(list, Math.max(list.findIndex(s => normKey(s.s, s.a) === b.dataset.k), 0));
+  });
   const more = $('dictMore');
   if (more) more.onclick = () => { dictAll = !dictAll; renderDict(); };
 }

@@ -161,7 +161,12 @@ body.has-player #app > section:last-of-type{padding-bottom:96px}
 .dict .q i{width:8px;height:8px;flex-shrink:0}
 .dict .q b{flex:1;font-size:13px;font-weight:800}
 .dict .q span{font-size:10px;font-weight:700;opacity:.45}
-.dict .a{display:none;font-size:12.5px;font-weight:500;line-height:1.65;opacity:.75;padding:0 0 14px 0}
+.dict .a{display:none;padding:0 0 12px 0}
+.dict .songs{max-height:196px;overflow-y:auto;overscroll-behavior:contain}
+.dict .srow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--rule-soft)}
+.dict .srow .tt{font-size:12.5px;font-weight:700}
+.dict .srow .aa{font-size:10px;font-weight:400;opacity:.55}
+.dict .srow .pbtn{width:26px;height:26px}
 .dict .item.open .a{display:block}
 
 /* ---------- player ---------- */
@@ -304,7 +309,7 @@ body.has-player #app > section:last-of-type{padding-bottom:96px}
     </div>
     <div class="filters" id="filters"></div>
     <button class="thin" id="dictToggle">
-      <span>מה כל קטגוריה אומרת</span>
+      <span>קטגוריות</span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
     </button>
     <div class="dict" id="dict" hidden></div>
@@ -353,10 +358,10 @@ body.has-player #app > section:last-of-type{padding-bottom:96px}
 </div><!-- /shell -->
 
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
-<script src="enrich.js?v=13"></script>
-<script src="artist_map.js?v=13"></script>
-<script src="rules.js?v=13"></script>
-<script src="spotify.js?v=13"></script>
-<script src="app.js?v=13"></script>
+<script src="enrich.js?v=14"></script>
+<script src="artist_map.js?v=14"></script>
+<script src="rules.js?v=14"></script>
+<script src="spotify.js?v=14"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
