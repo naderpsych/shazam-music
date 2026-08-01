@@ -131,7 +131,8 @@ button{cursor:pointer}
 .filters{display:flex;gap:5px;overflow-x:auto;padding:14px 0 2px;-ms-overflow-style:none;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 .filters .chip{white-space:nowrap}
-.rows{margin-top:14px}
+.rows{margin-top:14px;max-height:326px;overflow-y:auto;overscroll-behavior:contain}
+.rows .tr:last-child{border-bottom:none}
 .tr{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--rule-1)}
 .tr:first-child{border-top:2px solid var(--ink)}
 .tr:last-child{border-bottom:2px solid var(--ink)}
@@ -358,10 +359,10 @@ body.has-player #app > section:last-of-type{padding-bottom:96px}
 </div><!-- /shell -->
 
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
-<script src="enrich.js?v=14"></script>
-<script src="artist_map.js?v=14"></script>
-<script src="rules.js?v=14"></script>
-<script src="spotify.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="enrich.js?v=15"></script>
+<script src="artist_map.js?v=15"></script>
+<script src="rules.js?v=15"></script>
+<script src="spotify.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

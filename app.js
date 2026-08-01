@@ -309,7 +309,9 @@ function visible() {
     (!q || s.s.toLowerCase().includes(q) || s.a.toLowerCase().includes(q)));
 }
 
-function renderRows() {
+function renderRows(keepScroll) {
+  const box = $('rows');
+  const top = keepScroll ? box.scrollTop : 0;
   const list = visible();
   $('q').placeholder = `${nf(LIB.length)} שירים. חפש אחד.`;
   if (!list.length) {
@@ -327,7 +329,8 @@ function renderRows() {
       <div class="info"><div class="tt ell">${esc(s.s)}</div><div class="aa ell">${esc(s.a)}</div></div>
     </div>`;
   }).join('');
-  $('moreBtn').hidden = list.length <= shown;
+  box.scrollTop = top;
+  $('moreBtn').hidden = true;
   $('rows').querySelectorAll('.pbtn').forEach(b => b.onclick = () => {
     const k = b.dataset.k;
     const idx = list.findIndex(s => normKey(s.s, s.a) === k);
@@ -487,7 +490,12 @@ $('dictToggle').onclick = () => {
 };
 $('reload').onclick = () => $('file').click();
 $('q').oninput = e => { query = e.target.value; shown = 40; renderRows(); };
-$('moreBtn').onclick = () => { shown += 40; renderRows(); };
+$('rows').addEventListener('scroll', () => {
+  const b = $('rows');
+  if (b.scrollTop + b.clientHeight > b.scrollHeight - 120 && shown < visible().length) {
+    shown += 40; renderRows(true);
+  }
+});
 $('pToggle').onclick = () => { if (queue.length) spTogglePlay(); };
 $('pInfo').onclick = () => {
   const s = queue[qi]; if (!s) return;
