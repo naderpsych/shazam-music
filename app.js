@@ -459,6 +459,12 @@ $('actSave').onclick = () => {
   spCreatePlaylist('שאזאם — ' + name, ids);
 };
 $('repExp').onclick = () => { repsOpen = !repsOpen; renderRepeats(); };
+$('dictToggle').onclick = () => {
+  const open = $('dict').hidden;
+  $('dict').hidden = !open;
+  $('dictToggle').classList.toggle('open', open);
+};
+$('reload').onclick = () => $('file').click();
 $('q').oninput = e => { query = e.target.value; shown = 40; renderRows(); };
 $('moreBtn').onclick = () => { shown += 40; renderRows(); };
 $('pToggle').onclick = () => { if (queue.length) spTogglePlay(); };

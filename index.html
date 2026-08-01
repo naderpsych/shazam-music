@@ -15,6 +15,7 @@
   --green:#1DB954;
 }
 *{box-sizing:border-box;margin:0;padding:0;border-radius:0}
+[hidden]{display:none!important}   /* id selectors below would otherwise win over it */
 html,body{background:#e6e5e5}
 body{
   font-family:"Archivo","Heebo",system-ui,sans-serif;
@@ -145,7 +146,14 @@ button{cursor:pointer}
 .empty{padding:22px 0;font-size:12px;font-weight:500;opacity:.5}
 
 /* ---------- dictionary ---------- */
-.dict{margin-top:16px}
+.thin{display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:11px 0;margin-top:10px;font-size:12px;font-weight:700;
+  border-top:1px solid var(--rule-1);border-bottom:1px solid var(--rule-1)}
+.thin svg{transition:transform .15s ease-out;opacity:.55}
+.thin.open svg{transform:rotate(180deg)}
+.thin.reload{margin-top:22px;opacity:.6;border-bottom:none}
+.dict{margin-bottom:6px}
+#app > section:last-of-type{padding-bottom:96px}
 .dict .item{border-top:1px solid var(--rule-1)}
 .dict .item:last-child{border-bottom:1px solid var(--rule-1)}
 .dict .q{display:flex;align-items:center;gap:8px;width:100%;padding:12px 0;text-align:start}
@@ -289,21 +297,22 @@ button{cursor:pointer}
   </section>
 
   <section class="sec">
-    <div class="sec-t">מילון ז׳אנרים</div>
-    <div class="sec-s">מה כל עולם אומר</div>
-    <div class="dict" id="dict"></div>
-  </section>
-
-  <div class="hr"></div>
-  <section class="sec" style="padding-bottom:96px">
-    <div class="sec-t">כל השירים</div>
-    <div class="search" style="margin-top:14px">
+    <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="q" type="search" placeholder="חפש שיר או אמן">
     </div>
     <div class="filters" id="filters"></div>
+    <button class="thin" id="dictToggle">
+      <span>מילון ז׳אנרים</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <div class="dict" id="dict" hidden></div>
     <div class="rows" id="rows"></div>
     <button class="more" id="moreBtn" hidden>הצג עוד</button>
+    <button class="thin reload" id="reload">
+      <span>טען רשימת שאזאם חדשה</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+    </button>
   </section>
 </main>
 
@@ -343,10 +352,10 @@ button{cursor:pointer}
 </div><!-- /shell -->
 
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
-<script src="enrich.js?v=11"></script>
-<script src="artist_map.js?v=11"></script>
-<script src="rules.js?v=11"></script>
-<script src="spotify.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="enrich.js?v=12"></script>
+<script src="artist_map.js?v=12"></script>
+<script src="rules.js?v=12"></script>
+<script src="spotify.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
