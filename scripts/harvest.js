@@ -7,8 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const OUT = path.join(__dirname, '..', 'site', 'shazam.json');
-const IDS = path.join(__dirname, '..', 'site', 'tracks.json');
+const OUT = path.join(__dirname, '..', 'shazam.json');
+const IDS = path.join(__dirname, '..', 'tracks.json');
 const LIMIT = parseInt(process.argv[2]) || 0;
 
 (async () => {
