@@ -1,0 +1,41 @@
+name: Harvest Shazam genres
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'How many songs this run (0 = all remaining)'
+        required: false
+        default: '20'
+
+permissions:
+  contents: write
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@latest >/dev/null 2>&1
+          npx playwright install --with-deps chromium
+
+      - name: Harvest
+        run: node scripts/harvest.js ${{ github.event.inputs.limit }}
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/shazam.json || true
+          git diff --staged --quiet || git commit -m "Harvest: Shazam genres [skip ci]"
+          git push || true
